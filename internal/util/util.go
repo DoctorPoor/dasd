@@ -11,16 +11,20 @@ import (
 	"github.com/eiannone/keyboard"
 )
 
+const ESC_KEY = "ESC"
+const KEYS_LENGTH = 37
 const TAIL_LENGTH = 256
-const KEYS_LENGTH = 36
 
-var KEYSTROKE_MAP = [KEYS_LENGTH]string{"1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z"}
+var KEYSTROKE_MAP = [KEYS_LENGTH]string{"1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k", "l", "m", "n", "o", "p", "q", "r", "s", "t", "u", "v", "w", "x", "y", "z", "ESC"}
 
 /////////////////////////////////////
 // PUBLIC
 /////////////////////////////////////
 
 func ExecuteCommandInTerminal(commandsMap map[string]string, keyPressed string) error {
+	if keyPressed == ESC_KEY {
+		return nil
+	}
 	command := strings.Replace(commandsMap[keyPressed], "\"", "\\\"", -1)
 	appleScript := []string{"osascript", "-e"}
 	_, errFindIterm := executeCommand([]string{"sh", "-c", "ps aux | grep iTerm2 | grep -v grep"})
@@ -88,22 +92,24 @@ func GetCommands() ([]string, map[string]string, error) {
 
 func GetKeyPressed() (string, error) {
 	fmt.Print("Press key to execute: ")
-	char, _, errGetSingleKey := keyboard.GetSingleKey()
-	if errGetSingleKey != nil {
-		return "", errGetSingleKey
+
+	var charString string
+	var errGetCharString error
+	charString, errGetCharString = getCharString()
+	if errGetCharString != nil {
+		return "", errGetCharString
 	}
-	charString := string(char)
-	fmt.Print(charString)
 	for !includes(KEYSTROKE_MAP, charString) {
 		fmt.Print("\nInvalid key, enter again: ")
-		char, _, errGetSingleKeyInvalid := keyboard.GetSingleKey()
-		if errGetSingleKeyInvalid != nil {
-			return "", errGetSingleKeyInvalid
+		charString, errGetCharString = getCharString()
+		if errGetCharString != nil {
+			return "", errGetCharString
 		}
-		charString = string(char)
-		fmt.Print(charString)
 	}
-	fmt.Print(" -> ")
+
+	if charString != ESC_KEY {
+		fmt.Print(" -> ")
+	}
 	return charString, nil
 }
 
@@ -126,6 +132,20 @@ func executeCommand(command []string) (string, error) {
 		return "", err
 	}
 	return out.String(), nil
+}
+
+func getCharString() (string, error) {
+	char, key, errGetSingleKey := keyboard.GetSingleKey()
+	if errGetSingleKey != nil {
+		return "", errGetSingleKey
+	}
+	if key == keyboard.KeyEsc {
+		fmt.Println(ESC_KEY)
+		return ESC_KEY, nil
+	}
+	charString := string(char)
+	fmt.Print(charString)
+	return charString, nil
 }
 
 func includes(elements [KEYS_LENGTH]string, target string) bool {
